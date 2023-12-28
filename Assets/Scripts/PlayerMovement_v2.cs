@@ -28,7 +28,7 @@ public class PlayerMovement_v2 : MonoBehaviour
     private float _previousFootRightPositionY;
 
     // Schwellen fuer die Positionsaenderung - umso gruesser bzw. kleiner diese sind, desto schwieriger
-    private float MovementThreshold = 0.1f;     // Schwelle fuer Seitwaertsbewegung
+    private float MovementThreshold = 0.02f;     // Schwelle fuer Seitwaertsbewegung
     private float BendingThreshold = -0.2f;     // Schwelle fuer das Buecken (negative Werte, da Y-Position nach unten zunimmt)
     public float JumpThreshold = 0.1f;          // Schwelle fuer das Erkennen eines Sprungs
 
@@ -37,6 +37,12 @@ public class PlayerMovement_v2 : MonoBehaviour
     public static bool isMovingLeft = false;
     public static bool isMovingRight = false;
     public static bool isDucking = false; 
+
+    // Definiere die Gelenktypen fuer den SpineBase (Rumpf), Kopf, linken Fuss und rechten Fuss
+    JointType spineBase = JointType.SpineBase;
+    JointType head = JointType.Head;
+    JointType footLeft = JointType.FootLeft;
+    JointType footRight = JointType.FootRight;
 
     // Start wird beim ersten Frame aufgerufen
     void Start()
@@ -151,8 +157,6 @@ public class PlayerMovement_v2 : MonoBehaviour
    // Ueberwacht die links und rechts Bewegung
     void horizontalMovement(Body body)
     {
-        // Definiere den Gelenktypen fuer den SpineBase (Rumpf)
-        JointType spineBase = JointType.SpineBase;
         // Erhalte die Positionen des Gelenkes des Koerpers aus dem Kinect-Body-Objekt
         CameraSpacePoint basePosition = body.Joints[spineBase].Position;
         // aktuelle X-Position des Gelenks
@@ -189,12 +193,7 @@ public class PlayerMovement_v2 : MonoBehaviour
     /// Ueberwacht das Springen und Ducken
     void verticalMovement(Body body)
     {
-        // Definiere die Gelenktypen fuer den SpineBase (Rumpf), Kopf, linken Fuss und rechten Fuss
-        JointType spineBase = JointType.SpineBase;
-        JointType head = JointType.Head;
-        JointType footLeft = JointType.FootLeft;
-        JointType footRight = JointType.FootRight;
-
+       
         // Erhalte die Positionen der Gelenke des Koerpers aus dem Kinect-Body-Objekt
         CameraSpacePoint basePosition = body.Joints[spineBase].Position;
         CameraSpacePoint headPosition = body.Joints[head].Position;
