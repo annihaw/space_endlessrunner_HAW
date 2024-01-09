@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Windows.Kinect;
+using System.Threading.Tasks; // Hinzugefügt für Parallel
 
 public class PlayerMovement_v2 : MonoBehaviour
 {
@@ -24,13 +25,13 @@ public class PlayerMovement_v2 : MonoBehaviour
     private float _previousXPosition;
     private float _previousYPositionBase;
     private float _previousHeadPositionY; 
-    private float _previousFootLeftPositionY;
-    private float _previousFootRightPositionY;
+    private float _previousKneeLeftPositionY;
+    private float _previousKneeRightPositionY;
 
     // Schwellen fuer die Positionsaenderung - umso gruesser bzw. kleiner diese sind, desto schwieriger
-    private float MovementThreshold = 0.02f;     // Schwelle fuer Seitwaertsbewegung
+    private float MovementThreshold = 0.09f;     // Schwelle fuer Seitwaertsbewegung
     private float BendingThreshold = -0.2f;     // Schwelle fuer das Buecken (negative Werte, da Y-Position nach unten zunimmt)
-    public float JumpThreshold = 0.1f;          // Schwelle fuer das Erkennen eines Sprungs
+    public float JumpThreshold = 0.015f;          // Schwelle fuer das Erkennen eines Sprungs
 
     // Variablen fuer den aktuellen Zustand
     public static bool isJumping = false;
@@ -41,8 +42,8 @@ public class PlayerMovement_v2 : MonoBehaviour
     // Definiere die Gelenktypen fuer den SpineBase (Rumpf), Kopf, linken Fuss und rechten Fuss
     JointType spineBase = JointType.SpineBase;
     JointType head = JointType.Head;
-    JointType footLeft = JointType.FootLeft;
-    JointType footRight = JointType.FootRight;
+    JointType kneeLeft = JointType.KneeLeft;
+    JointType kneeRight = JointType.KneeRight;
 
     // Start wird beim ersten Frame aufgerufen
     void Start()
@@ -65,7 +66,7 @@ public class PlayerMovement_v2 : MonoBehaviour
     }
 
     // Update wird einmal pro Frame aufgerufen
-    void Update()
+    /*void Update()
     {
         //float horizontalInput = Input.GetAxis("Horizontal");
         //float verticalInput = Input.GetAxis("Vertical");
@@ -88,6 +89,31 @@ public class PlayerMovement_v2 : MonoBehaviour
                         verticalMovement(body);
                     }
                 }
+
+                frame.Dispose();
+            }
+        }*/
+    void Update()
+    {
+        float verticalVelocity = rb.velocity.y;
+
+        if (_reader != null)
+        {
+            var frame = _reader.AcquireLatestFrame();
+
+            if (frame != null)
+            {
+                frame.GetAndRefreshBodyData(_Data);
+
+                // Parallelisiere die Verarbeitung der Body-Daten
+                Parallel.ForEach(_Data, body =>
+                {
+                    if (body != null && body.IsTracked)
+                    {
+                        // Horizontale und vertikale Bewegung parallel verarbeiten
+                        Parallel.Invoke(() => horizontalMovement(body), () => verticalMovement(body));
+                    }
+                });
 
                 frame.Dispose();
             }
@@ -197,25 +223,25 @@ public class PlayerMovement_v2 : MonoBehaviour
         // Erhalte die Positionen der Gelenke des Koerpers aus dem Kinect-Body-Objekt
         CameraSpacePoint basePosition = body.Joints[spineBase].Position;
         CameraSpacePoint headPosition = body.Joints[head].Position;
-        CameraSpacePoint footLeftPosition = body.Joints[footLeft].Position;
-        CameraSpacePoint footRightPosition = body.Joints[footRight].Position;
+        CameraSpacePoint kneeLeftPosition = body.Joints[kneeLeft].Position;
+        CameraSpacePoint kneeRightPosition = body.Joints[kneeRight].Position;
 
         // aktuelle Y-Positionen der verschiedenen Gelenke
         float currentYPositionBase = basePosition.Y;
         float currentYPositionHead = headPosition.Y;
-        float currentYPositionFootLeft = footLeftPosition.Y;
-        float currentYPositionFootRight = footRightPosition.Y;
+        float currentYPositionKneeLeft = kneeLeftPosition.Y;
+        float currentYPositionKneeRight = kneeRightPosition.Y;
 
         // Variablen fuer die Differenzen der Positionen
         float baseChange = Mathf.Abs(currentYPositionBase - _previousYPositionBase);
         float headChange = currentYPositionHead - _previousHeadPositionY;
-        float footLeftChange = Mathf.Abs(currentYPositionFootLeft - _previousFootLeftPositionY);
-        float footRightChange = Mathf.Abs(currentYPositionFootRight - _previousFootRightPositionY);
+        float kneeLeftChange = Mathf.Abs(currentYPositionKneeLeft - _previousKneeLeftPositionY);
+        float kneeRightChange = Mathf.Abs(currentYPositionKneeRight - _previousKneeRightPositionY);
 
         // Ueberprueft ob sich die Y-Position des SpineBase-Gelenks oder der Fuesse ausreichend aendert
         if (baseChange > JumpThreshold &&
-            footLeftChange > 0.05f &&
-            footRightChange > 0.05f )
+            kneeLeftChange > 0.05f &&
+            kneeRightChange > 0.05f )
         {
             // Hier wird der Sprungstatus geaendert
             isJumping = true;
@@ -240,8 +266,8 @@ public class PlayerMovement_v2 : MonoBehaviour
         // Speichere die aktuellen Y-Positionen fuer den naechsten Frame
         _previousYPositionBase = currentYPositionBase;
         _previousHeadPositionY = currentYPositionHead;
-        _previousFootLeftPositionY = currentYPositionFootLeft;
-        _previousFootRightPositionY = currentYPositionFootRight;
+        _previousKneeLeftPositionY = currentYPositionKneeLeft;
+        _previousKneeRightPositionY = currentYPositionKneeRight;
     }
 
     // Wird aufgerufen, wenn die Anwendung beendet wird
